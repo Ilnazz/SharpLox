@@ -3,7 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpLox", "SharpLox.csproj", "{F5C7BE1A-9289-4E14-94C4-FB319D22FF27}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpLox", "sources\SharpLox\SharpLox.csproj", "{F5C7BE1A-9289-4E14-94C4-FB319D22FF27}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpLox.UnitTests", "tests\SharpLox.UnitTests\SharpLox.UnitTests.csproj", "{5963505C-9D30-4353-AE0A-967F39456760}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterpreterToolkit", "sources\InterpreterToolkit\InterpreterToolkit.csproj", "{DA808027-2B94-483C-AD5C-E0DCD455B92B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,14 @@ Global
 		{F5C7BE1A-9289-4E14-94C4-FB319D22FF27}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F5C7BE1A-9289-4E14-94C4-FB319D22FF27}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F5C7BE1A-9289-4E14-94C4-FB319D22FF27}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5963505C-9D30-4353-AE0A-967F39456760}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5963505C-9D30-4353-AE0A-967F39456760}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5963505C-9D30-4353-AE0A-967F39456760}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5963505C-9D30-4353-AE0A-967F39456760}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA808027-2B94-483C-AD5C-E0DCD455B92B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA808027-2B94-483C-AD5C-E0DCD455B92B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA808027-2B94-483C-AD5C-E0DCD455B92B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA808027-2B94-483C-AD5C-E0DCD455B92B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
