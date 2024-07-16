@@ -17,7 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\sources\InterpreterToolkit\InterpreterToolkit.csproj" />
     <ProjectReference Include="..\..\sources\SharpLox\SharpLox.csproj" />
     <ProjectReference Include="..\SharpLox\SharpLox.csproj" />
   </ItemGroup>

@@ -1,9 +1,9 @@
 ﻿using System;
-using InterpreterToolkit.Scanning;
+using SharpLox.Scanning;
 
-namespace InterpreterToolkit;
+namespace SharpLox;
 
-public abstract class InterpreterProgramBase(IScannerFactory scannerFactory) : IInterpreterProgram
+public class InterpreterProgram(IScannerFactory scannerFactory) : IInterpreterProgram
 {
     public void Interpret(string sourceCode)
     {

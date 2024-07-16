@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace InterpreterToolkit.Errors;
+namespace SharpLox.Errors;
 
 public class ConsoleErrorReporter : IErrorReporter
 {

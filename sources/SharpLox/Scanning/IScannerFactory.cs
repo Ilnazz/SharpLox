@@ -1,4 +1,4 @@
-﻿namespace InterpreterToolkit.Scanning;
+﻿namespace SharpLox.Scanning;
 
 public interface IScannerFactory
 {

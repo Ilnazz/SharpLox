@@ -1,4 +1,4 @@
-﻿namespace InterpreterToolkit.Scanning;
+﻿namespace SharpLox.Scanning;
 
 public static class AsciiChars
 {

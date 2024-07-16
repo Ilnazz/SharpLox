@@ -1,4 +1,4 @@
-﻿using InterpreterToolkit.Errors;
+﻿using SharpLox.Errors;
 
 namespace SharpLox.UnitTests;
 

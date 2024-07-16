@@ -1,4 +1,4 @@
-﻿namespace InterpreterToolkit;
+﻿namespace SharpLox;
 
 public interface IInterpreterProgram
 {

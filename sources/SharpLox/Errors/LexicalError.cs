@@ -1,4 +1,4 @@
-﻿namespace InterpreterToolkit.Errors;
+﻿namespace SharpLox.Errors;
 
 public class LexicalError(int lineNumber, int columnNumber, string message) : Error
 {

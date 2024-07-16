@@ -1,4 +1,4 @@
-using InterpreterToolkit.Errors;
+using SharpLox.Errors;
 using SharpLox.Scanning;
 
 namespace SharpLox.UnitTests
@@ -18,7 +18,7 @@ namespace SharpLox.UnitTests
         public void ReturnsTerminatorTokenWhenSourceCodeIsEmpty()
         {
             var sourceCode = string.Empty;
-            var scanner = new LoxScanner(_errorReporter, sourceCode);
+            var scanner = new Scanner(_errorReporter, sourceCode);
 
             var tokenArray = scanner.ScanTokens().ToArray();
 

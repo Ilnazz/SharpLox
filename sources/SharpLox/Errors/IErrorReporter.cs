@@ -1,4 +1,4 @@
-﻿namespace InterpreterToolkit.Errors;
+﻿namespace SharpLox.Errors;
 
 public interface IErrorReporter
 {

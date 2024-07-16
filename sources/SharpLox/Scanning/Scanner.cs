@@ -2,48 +2,83 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using InterpreterToolkit.Errors;
-using InterpreterToolkit.Scanning;
-using InterpreterToolkit.Tokens;
+using SharpLox.Errors;
+using SharpLox.Tokens;
 
 namespace SharpLox.Scanning;
 
-public class LoxScanner(IErrorReporter errorReporter, string sourceCode) : ScannerBase(errorReporter, sourceCode)
+public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
 {
+    private string CurrentLexeme => sourceCode[_lexemeStartIndex.._currentIndex];
+    
     #region Fields
     private static readonly CultureInfo EnglishCulture = new("en-US");
     
     private static readonly FrozenDictionary<string, TokenType> TokenTypeByKeywords = new Dictionary<string, TokenType>
     {
-        [LoxKeywords.Nil] = LoxTokenTypes.Nil,
+        [Keywords.Nil] = TokenType.Nil,
         
-        [LoxKeywords.True] = LoxTokenTypes.True,
-        [LoxKeywords.False] = LoxTokenTypes.False,
+        [Keywords.True] = TokenType.True,
+        [Keywords.False] = TokenType.False,
     
-        [LoxKeywords.And] = LoxTokenTypes.And,
-        [LoxKeywords.Or] = LoxTokenTypes.Or,
+        [Keywords.And] = TokenType.And,
+        [Keywords.Or] = TokenType.Or,
         
-        [LoxKeywords.Var] = LoxTokenTypes.Var,
+        [Keywords.Var] = TokenType.Var,
         
-        [LoxKeywords.If] = LoxTokenTypes.If,
-        [LoxKeywords.Else] = LoxTokenTypes.Else,
+        [Keywords.If] = TokenType.If,
+        [Keywords.Else] = TokenType.Else,
         
-        [LoxKeywords.Print] = LoxTokenTypes.Print,
+        [Keywords.Print] = TokenType.Print,
         
-        [LoxKeywords.Fun] = LoxTokenTypes.Fun,
-        [LoxKeywords.Return] = LoxTokenTypes.Return,
+        [Keywords.Fun] = TokenType.Fun,
+        [Keywords.Return] = TokenType.Return,
         
-        [LoxKeywords.Class] = LoxTokenTypes.Class,
-        [LoxKeywords.Super] = LoxTokenTypes.Super,
-        [LoxKeywords.This] = LoxTokenTypes.This,
+        [Keywords.Class] = TokenType.Class,
+        [Keywords.Super] = TokenType.Super,
+        [Keywords.This] = TokenType.This,
         
-        [LoxKeywords.While] = LoxTokenTypes.While,
-        [LoxKeywords.For] = LoxTokenTypes.For
+        [Keywords.While] = TokenType.While,
+        [Keywords.For] = TokenType.For
     }
         .ToFrozenDictionary();
+    
+    private int
+        _currentLine = 1,
+        _currentColumn,
+        _currentIndex,
+        _lexemeStartIndex;
     #endregion
+    
+    public IEnumerable<Token> ScanTokens()
+    {
+        while (!IsAtEnd())
+        {
+            _lexemeStartIndex = _currentIndex;
+            
+            var currentChar = PeekAndAdvance();
 
-    protected override bool HandleChar(char c, out Token? token, [NotNullWhen(false)] out Error? error)
+            if (!HandleChar(currentChar, out var token, out var error))
+            {
+                errorReporter.ReportError(error);
+            }
+            else if (token is not null)
+            {
+                yield return token;
+            }
+        }
+
+        yield return CreateTerminatorToken();
+        
+        _currentIndex = 0;
+        _lexemeStartIndex = 0;
+
+        _currentLine = 0;
+        _currentColumn = 0;
+    }
+    
+    #region Char handling
+    private bool HandleChar(char c, out Token? token, [NotNullWhen(false)] out Error? error)
     {
         token = null;
         error = null;
@@ -52,55 +87,55 @@ public class LoxScanner(IErrorReporter errorReporter, string sourceCode) : Scann
         {
             case AsciiChars.LeftParen:
             {
-                token = CreateToken(LoxTokenTypes.LeftParen);
+                token = CreateToken(TokenType.LeftParen);
                 break;
             }
             case AsciiChars.RightParen:
             {
-                token = CreateToken(LoxTokenTypes.RightParen);
+                token = CreateToken(TokenType.RightParen);
                 break;
             }
 
             case AsciiChars.LeftBrace:
             {
-                token = CreateToken(LoxTokenTypes.LeftBrace);
+                token = CreateToken(TokenType.LeftBrace);
                 break;
             }
             case AsciiChars.RightBrace:
             {
-                token = CreateToken(LoxTokenTypes.RightBrace);
+                token = CreateToken(TokenType.RightBrace);
                 break;
             }
 
             case AsciiChars.Dot:
             {
-                token = CreateToken(LoxTokenTypes.Dot);
+                token = CreateToken(TokenType.Dot);
                 break;
             }
             case AsciiChars.Comma:
             {
-                token = CreateToken(LoxTokenTypes.Comma);
+                token = CreateToken(TokenType.Comma);
                 break;
             }
             case AsciiChars.Semicolon:
             {
-                token = CreateToken(LoxTokenTypes.Semicolon);
+                token = CreateToken(TokenType.Semicolon);
                 break;
             }
             
             case AsciiChars.Plus:
             {
-                token = CreateToken(LoxTokenTypes.Plus);
+                token = CreateToken(TokenType.Plus);
                 break;
             }
             case AsciiChars.Minus:
             {
-                token = CreateToken(LoxTokenTypes.Minus);
+                token = CreateToken(TokenType.Minus);
                 break;
             }
             case AsciiChars.Star:
             {
-                token = CreateToken(LoxTokenTypes.Star);
+                token = CreateToken(TokenType.Star);
                 break;
             }
             case AsciiChars.Slash:
@@ -112,25 +147,25 @@ public class LoxScanner(IErrorReporter errorReporter, string sourceCode) : Scann
             case AsciiChars.Bang:
             {
                 token = CreateToken(MatchAndAdvance(AsciiChars.Equal)
-                    ? LoxTokenTypes.BangEqual : LoxTokenTypes.Bang);
+                    ? TokenType.BangEqual : TokenType.Bang);
                 break;
             }
             case AsciiChars.Equal:
             {
                 token = CreateToken(MatchAndAdvance(AsciiChars.Equal)
-                    ? LoxTokenTypes.EqualEqual : LoxTokenTypes.Equal);
+                    ? TokenType.EqualEqual : TokenType.Equal);
                 break;
             }
             case AsciiChars.Less:
             {
                 token = CreateToken(MatchAndAdvance(AsciiChars.Equal)
-                    ? LoxTokenTypes.LessEqual : LoxTokenTypes.Less);
+                    ? TokenType.LessEqual : TokenType.Less);
                 break;
             }
             case AsciiChars.Greater:
             {
                 token = CreateToken(MatchAndAdvance(AsciiChars.Equal)
-                    ? LoxTokenTypes.GreaterEqual : LoxTokenTypes.Greater);
+                    ? TokenType.GreaterEqual : TokenType.Greater);
                 break;
             }
             
@@ -172,11 +207,8 @@ public class LoxScanner(IErrorReporter errorReporter, string sourceCode) : Scann
         return error is null;
     }
 
-    protected override Token CreateTerminatorToken() =>
-        new(LoxTokenTypes.Terminator, CurrentLine, CurrentColumn);
-
-    #region Character handlers
-    private void HandleWhiteSpace() => IncrementLineAndResetColumn();
+    private void HandleWhiteSpace() =>
+        IncrementLineAndResetColumn();
 
     private void HandleSlash(out Token? token, out Error? error)
     {
@@ -210,12 +242,12 @@ public class LoxScanner(IErrorReporter errorReporter, string sourceCode) : Scann
             }
 
             // The star and slash.
-            Advance(amount: 2);
+            AdvanceTwice();
         }
         // A single slash.
         else
         {
-            token = CreateToken(LoxTokenTypes.Slash);
+            token = CreateToken(TokenType.Slash);
         }
     }
     
@@ -238,7 +270,7 @@ public class LoxScanner(IErrorReporter errorReporter, string sourceCode) : Scann
         Advance();
 
         var literal = CurrentLexeme[1..^2];
-        token = CreateToken(LoxTokenTypes.String, literal);
+        token = CreateToken(TokenType.String, literal);
     }
 
     #region Number handling
@@ -258,7 +290,7 @@ public class LoxScanner(IErrorReporter errorReporter, string sourceCode) : Scann
 
         var englishCultureNumberFormat = EnglishCulture.NumberFormat;
         var literal = decimal.Parse(CurrentLexeme, englishCultureNumberFormat);
-        token = CreateToken(LoxTokenTypes.Number, literal);
+        token = CreateToken(TokenType.Number, literal);
     }
 
     private void AdvanceWhilePeekingDigit()
@@ -275,7 +307,7 @@ public class LoxScanner(IErrorReporter errorReporter, string sourceCode) : Scann
 
         AdvanceWhilePeekingAlphaOrDigit();
 
-        var tokenType = TokenTypeByKeywords.GetValueOrDefault(CurrentLexeme, LoxTokenTypes.Identifier);
+        var tokenType = TokenTypeByKeywords.GetValueOrDefault(CurrentLexeme, TokenType.Identifier);
         token = CreateToken(tokenType);
     }
 
@@ -287,19 +319,85 @@ public class LoxScanner(IErrorReporter errorReporter, string sourceCode) : Scann
     #endregion
     #endregion
 
-    private char PeekNext() => Peek(charsToLookAhead: 1);
-
     #region Char helpers
     private static bool IsWhiteSpace(char c) =>
         c is AsciiChars.Space
-        or AsciiChars.Tabulation
-        or AsciiChars.CarriageReturn;
+            or AsciiChars.Tabulation
+            or AsciiChars.CarriageReturn;
 
-    private static bool IsAlphaOrDigit(char c) => IsDigit(c) || IsAlpha(c);
+    private static bool IsAlphaOrDigit(char c) =>
+        IsDigit(c) || IsAlpha(c);
     
-    private static bool IsDigit(char c) => c is >= '0' and <= '9';
+    private static bool IsDigit(char c) =>
+        c is >= '0' and <= '9';
 
     private static bool IsAlpha(char c) =>
-        c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or '_';
+        c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or '_';    
+    #endregion
+    
+    #region Creational methods
+    private Token CreateToken(TokenType tokenType, object? literal = null) =>
+        new(tokenType, _currentLine, _currentColumn, CurrentLexeme, literal);
+
+    private Token CreateTerminatorToken() =>
+        new(TokenType.Terminator, _currentLine, _currentColumn);
+
+    private LexicalError CreateError(string message) =>
+        new(_currentLine, _currentColumn, message);
+    #endregion
+
+    #region Matching methods
+    private bool MatchAndAdvance(char expectedChar)
+    {
+        if (!Match(expectedChar))
+            return false;
+
+        Advance();
+        return true;
+    }
+
+    private bool Match(char expectedChar) => Peek() == expectedChar;
+    #endregion
+    
+    #region Peeking methods
+    private char PeekAndAdvance(int charsToLookAhead = 0)
+    {
+        var currentChar = Peek(charsToLookAhead);
+        Advance();
+        return currentChar;
+    }
+
+    private char PeekNext() => Peek(charsToLookAhead: 1);
+
+    private char Peek(int charsToLookAhead = 0) =>
+        _currentIndex + charsToLookAhead < sourceCode.Length
+            ? sourceCode[_currentIndex + charsToLookAhead]
+            : AsciiChars.Zero;
+    #endregion
+
+    #region Advancement methods
+    private void AdvanceTwice() => Advance(amount: 2);
+    
+    private void Advance(int amount = 1)
+    {
+        if (!IsAtEnd())
+            IncreaseCurrentIndexAndColumn(amount);
+    }
+    #endregion
+
+    #region Helper methods
+    private bool IsAtEnd() => _currentIndex >= sourceCode.Length;
+
+    private void IncreaseCurrentIndexAndColumn(int amount = 1)
+    {
+        _currentIndex += amount;
+        _currentColumn += amount;
+    }
+    
+    private void IncrementLineAndResetColumn()
+    {
+        _currentLine++;
+        _currentColumn = 0;
+    }
     #endregion
 }

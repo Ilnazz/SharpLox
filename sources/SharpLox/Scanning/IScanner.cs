@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using InterpreterToolkit.Tokens;
+using SharpLox.Tokens;
 
-namespace InterpreterToolkit.Scanning;
+namespace SharpLox.Scanning;
 
 public interface IScanner
 {

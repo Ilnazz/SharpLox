@@ -1,4 +1,4 @@
-﻿namespace InterpreterToolkit.Tokens;
+﻿namespace SharpLox.Tokens;
 
 public class Token
 (

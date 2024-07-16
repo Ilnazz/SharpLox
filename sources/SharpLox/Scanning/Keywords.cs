@@ -1,6 +1,6 @@
-﻿namespace SharpLox;
+﻿namespace SharpLox.Scanning;
 
-public static class LoxKeywords
+public static class Keywords
 {
     public const string
         Nil = "nil",
