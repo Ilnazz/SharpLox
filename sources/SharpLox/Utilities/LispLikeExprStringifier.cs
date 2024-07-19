@@ -1,7 +1,8 @@
 ﻿using System.Text;
+using SharpLox.Expressions;
 using SharpLox.Scanning;
 
-namespace SharpLox.Expressions;
+namespace SharpLox.Utilities;
 
 /// <summary>
 /// The expression stringifier that visualizes an expression like a LISP function application chain.
@@ -25,13 +26,17 @@ public class LispLikeExprStringifier : IExprStringifier, IExprVisitor<string>
     string IExprVisitor<string>.Visit(BinaryExpr binary) =>
         Parenthesize(binary.Operator.Lexeme!, binary.Left, binary.Right);
 
-    private string Parenthesize(string name, params IExpr[] exprs)
+    string IExprVisitor<string>.Visit(ConditionalExpr conditional) =>
+        Parenthesize($"{AsciiChars.Question}{AsciiChars.Colon}",
+            conditional.Condition, conditional.Then, conditional.Else);
+
+    private string Parenthesize(string operatorName, params IExpr[] exprs)
     {
         var stringBuilder = new StringBuilder();
 
         stringBuilder
             .Append(AsciiChars.LeftParen)
-            .Append(name);
+            .Append(operatorName);
 
         foreach (var expr in exprs)
             stringBuilder

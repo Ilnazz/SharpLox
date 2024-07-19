@@ -1,5 +1,6 @@
 ﻿namespace SharpLox.Tokens;
 
+// Todo: add string Line { get; } to store the original source code line. 
 public class Token
 (
     TokenType type,

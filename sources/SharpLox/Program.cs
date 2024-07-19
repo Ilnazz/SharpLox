@@ -1,8 +1,8 @@
 ﻿using System;
 using System.IO;
-using InterpreterToolkit;
 using Microsoft.Extensions.DependencyInjection;
 using SharpLox.Errors;
+using SharpLox.Parsing;
 using SharpLox.Scanning;
 
 namespace SharpLox;
@@ -14,6 +14,7 @@ public static class Program
         var services = new ServiceCollection()
             .AddSingleton<IErrorReporter, ConsoleErrorReporter>()
             .AddSingleton<IScannerFactory, ScannerFactory>()
+            .AddSingleton<IParserFactory, ParserFactory>()
             .AddSingleton<IInterpreterProgram, InterpreterProgram>();
 
         var serviceProvider = services.BuildServiceProvider();
@@ -40,8 +41,6 @@ public static class Program
                 break;
             }
         }
-
-        // This is the first part of our compiler/interpreter conveyor.
 
         var errorReporter = serviceProvider.GetRequiredService<IErrorReporter>();
         if (errorReporter.WasErrorOccured)

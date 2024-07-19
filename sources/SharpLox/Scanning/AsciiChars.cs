@@ -22,6 +22,8 @@ public static class AsciiChars
         Semicolon = ';',
         Dot = '.',
         Comma = ',',
+        Question = '?',
+        Colon = ':',
 
         Quote = '"',
 

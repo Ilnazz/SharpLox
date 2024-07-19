@@ -27,6 +27,8 @@ public enum TokenType
     Semicolon, // ;
     Dot, // .
     Comma, // ,
+    Question, // ?
+    Colon, // :
 
     // Literals
     Identifier,

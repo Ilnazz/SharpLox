@@ -2,14 +2,16 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using SharpLox.Base;
 using SharpLox.Errors;
 using SharpLox.Tokens;
 
 namespace SharpLox.Scanning;
 
-public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
+public sealed class Scanner(IErrorReporter errorReporter, string sourceCode) :
+    ScannerParserBase<char>(errorReporter, sourceCode.ToCharArray()), IScanner
 {
-    private string CurrentLexeme => sourceCode[_lexemeStartIndex.._currentIndex];
+    private string CurrentLexeme => sourceCode[_lexemeStartIndex..CurrentIndex];
     
     #region Fields
     private static readonly CultureInfo EnglishCulture = new("en-US");
@@ -46,21 +48,20 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
     private int
         _currentLine = 1,
         _currentColumn,
-        _currentIndex,
         _lexemeStartIndex;
     #endregion
     
     public IEnumerable<Token> ScanTokens()
     {
-        while (!IsAtEnd())
+        while (!IsAtEnd)
         {
-            _lexemeStartIndex = _currentIndex;
+            _lexemeStartIndex = CurrentIndex;
             
             var currentChar = PeekAndAdvance();
 
             if (!HandleChar(currentChar, out var token, out var error))
             {
-                errorReporter.ReportError(error);
+                ReportError(error);
             }
             else if (token is not null)
             {
@@ -70,7 +71,7 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
 
         yield return CreateTerminatorToken();
         
-        _currentIndex = 0;
+        CurrentIndex = 0;
         _lexemeStartIndex = 0;
 
         _currentLine = 0;
@@ -120,6 +121,16 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
             case AsciiChars.Semicolon:
             {
                 token = CreateToken(TokenType.Semicolon);
+                break;
+            }
+            case AsciiChars.Question:
+            {
+                token = CreateToken(TokenType.Question);
+                break;
+            }
+            case AsciiChars.Colon:
+            {
+                token = CreateToken(TokenType.Colon);
                 break;
             }
             
@@ -197,7 +208,7 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
                 }
                 else
                 {
-                    error = CreateError("Unexpected character");
+                    error = CreateError($"unexpected character \"{c}\".");
                 }
                 
                 break;
@@ -220,7 +231,7 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
         {
             Advance();
             
-            while (!IsAtEnd() && Peek() is not AsciiChars.NewLine)
+            while (!IsAtEnd && Peek() is not AsciiChars.NewLine)
                 Advance();
         }
         // A multi-line comment.
@@ -228,16 +239,16 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
         {
             Advance();
             
-            while (!IsAtEnd() &&
-                   !(Peek() is AsciiChars.Star && PeekNext() is AsciiChars.Slash))
+            while (!IsAtEnd &&
+                   !(Peek() is AsciiChars.Star && Next is AsciiChars.Slash))
             {
                 if (PeekAndAdvance() is AsciiChars.NewLine)
                     IncrementLineAndResetColumn();
             }
             
-            if (IsAtEnd())
+            if (IsAtEnd)
             {
-                error = CreateError("Unterminated multi-line comment");
+                error = CreateError("unterminated multi-line comment.");
                 return;
             }
 
@@ -256,13 +267,13 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
         token = null;
         error = null;
         
-        while (!IsAtEnd() && Peek() is not AsciiChars.Quote)
+        while (!IsAtEnd && Peek() is not AsciiChars.Quote)
             if (PeekAndAdvance() is AsciiChars.NewLine)
                 IncrementLineAndResetColumn();
 
-        if (IsAtEnd())
+        if (IsAtEnd)
         {
-            error = CreateError("Unterminated string");
+            error = CreateError("unterminated string.");
             return;
         }
         
@@ -280,7 +291,7 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
 
         AdvanceWhilePeekingDigit();
 
-        if (Peek() is AsciiChars.Dot && IsDigit(PeekNext()))
+        if (Peek() is AsciiChars.Dot && IsDigit(Next))
         {
             // The number decimal point.
             Advance();
@@ -295,7 +306,7 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
 
     private void AdvanceWhilePeekingDigit()
     {
-        while (IsDigit(Peek()))
+        while (!IsAtEnd && IsDigit(Peek()))
             Advance();
     }
     #endregion
@@ -313,7 +324,7 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
 
     private void AdvanceWhilePeekingAlphaOrDigit()
     {
-        while (IsAlphaOrDigit(Peek()))
+        while (!IsAtEnd && IsAlphaOrDigit(Peek()))
             Advance();
     }
     #endregion
@@ -322,8 +333,8 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
     #region Char helpers
     private static bool IsWhiteSpace(char c) =>
         c is AsciiChars.Space
-            or AsciiChars.Tabulation
-            or AsciiChars.CarriageReturn;
+        or AsciiChars.Tabulation
+        or AsciiChars.CarriageReturn;
 
     private static bool IsAlphaOrDigit(char c) =>
         IsDigit(c) || IsAlpha(c);
@@ -342,62 +353,26 @@ public class Scanner(IErrorReporter errorReporter, string sourceCode) : IScanner
     private Token CreateTerminatorToken() =>
         new(TokenType.Terminator, _currentLine, _currentColumn);
 
-    private LexicalError CreateError(string message) =>
-        new(_currentLine, _currentColumn, message);
-    #endregion
-
-    #region Matching methods
-    private bool MatchAndAdvance(char expectedChar)
-    {
-        if (!Match(expectedChar))
-            return false;
-
-        Advance();
-        return true;
-    }
-
-    private bool Match(char expectedChar) => Peek() == expectedChar;
-    #endregion
-    
-    #region Peeking methods
-    private char PeekAndAdvance(int charsToLookAhead = 0)
-    {
-        var currentChar = Peek(charsToLookAhead);
-        Advance();
-        return currentChar;
-    }
-
-    private char PeekNext() => Peek(charsToLookAhead: 1);
-
-    private char Peek(int charsToLookAhead = 0) =>
-        _currentIndex + charsToLookAhead < sourceCode.Length
-            ? sourceCode[_currentIndex + charsToLookAhead]
-            : AsciiChars.Zero;
+    private Error CreateError(string message) =>
+        new(ErrorType.LexicalError, _currentLine, _currentColumn, message);
     #endregion
 
     #region Advancement methods
     private void AdvanceTwice() => Advance(amount: 2);
     
-    private void Advance(int amount = 1)
+    protected override void Advance(int amount = 1)
     {
-        if (!IsAtEnd())
-            IncreaseCurrentIndexAndColumn(amount);
+        if (IsAtEnd)
+            return;
+        
+        CurrentIndex += amount;
+        _currentColumn += amount;
     }
     #endregion
 
-    #region Helper methods
-    private bool IsAtEnd() => _currentIndex >= sourceCode.Length;
-
-    private void IncreaseCurrentIndexAndColumn(int amount = 1)
-    {
-        _currentIndex += amount;
-        _currentColumn += amount;
-    }
-    
     private void IncrementLineAndResetColumn()
     {
         _currentLine++;
         _currentColumn = 0;
     }
-    #endregion
 }

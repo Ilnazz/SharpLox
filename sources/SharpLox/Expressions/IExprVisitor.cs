@@ -9,4 +9,6 @@ public interface IExprVisitor<out TResult>
     TResult Visit(UnaryExpr unary);
 
     TResult Visit(BinaryExpr binary);
+
+    TResult Visit(ConditionalExpr conditional);
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using SharpLox.Expressions;
 using SharpLox.Tokens;
+using SharpLox.Utilities;
 
 // var expr = new BinaryExpr
 // (

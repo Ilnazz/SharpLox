@@ -1,8 +1,9 @@
 ﻿using System.Text;
+using SharpLox.Expressions;
 using SharpLox.Scanning;
 using SharpLox.Tokens;
 
-namespace SharpLox.Expressions;
+namespace SharpLox.Utilities;
 
 /// <summary>
 /// The Reverse Polish Notation expression stringifier.
@@ -21,12 +22,16 @@ public class RpnExprStringifier : IExprStringifier, IExprVisitor<string>
         grouping.Expr.Accept(this);
 
     string IExprVisitor<string>.Visit(UnaryExpr unary) =>
-        StringifyExprWithOperator(unary.Operator, unary.Right);
+        StringifyExpressions(unary.Operator.Lexeme!, unary.Right);
 
     string IExprVisitor<string>.Visit(BinaryExpr binary) =>
-        StringifyExprWithOperator(binary.Operator, binary.Left, binary.Right);
+        StringifyExpressions(binary.Operator.Lexeme!, binary.Left, binary.Right);
 
-    private string StringifyExprWithOperator(Token @operator, params IExpr[] exprs)
+    string IExprVisitor<string>.Visit(ConditionalExpr conditional) =>
+        StringifyExpressions($"{AsciiChars.Question}{AsciiChars.Colon}",
+            conditional.Condition, conditional.Then, conditional.Else);
+
+    private string StringifyExpressions(string operatorName, params IExpr[] exprs)
     {
         var stringBuilder = new StringBuilder();
 
@@ -36,7 +41,7 @@ public class RpnExprStringifier : IExprStringifier, IExprVisitor<string>
                 .Append(AsciiChars.Space);
 
         stringBuilder
-            .Append(@operator.Lexeme);
+            .Append(operatorName);
         
         return stringBuilder.ToString();
     }

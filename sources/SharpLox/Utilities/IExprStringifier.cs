@@ -1,4 +1,6 @@
-﻿namespace SharpLox.Expressions;
+﻿using SharpLox.Expressions;
+
+namespace SharpLox.Utilities;
 
 public interface IExprStringifier
 {
