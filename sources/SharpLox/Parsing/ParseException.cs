@@ -2,7 +2,7 @@
 
 namespace SharpLox.Parsing;
 
-public class ParseException : Exception
+public sealed class ParseException : Exception
 {
     public ParseException() { }
     

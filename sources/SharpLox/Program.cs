@@ -2,6 +2,7 @@
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using SharpLox.Errors;
+using SharpLox.Interpretation;
 using SharpLox.Parsing;
 using SharpLox.Scanning;
 
@@ -15,6 +16,7 @@ public static class Program
             .AddSingleton<IErrorReporter, ConsoleErrorReporter>()
             .AddSingleton<IScannerFactory, ScannerFactory>()
             .AddSingleton<IParserFactory, ParserFactory>()
+            .AddSingleton<IInterpreterFactory, InterpreterFactory>()
             .AddSingleton<IInterpreterProgram, InterpreterProgram>();
 
         var serviceProvider = services.BuildServiceProvider();
@@ -43,8 +45,12 @@ public static class Program
         }
 
         var errorReporter = serviceProvider.GetRequiredService<IErrorReporter>();
-        if (errorReporter.WasErrorOccured)
+        
+        if (errorReporter.WasLexicalErrorOccured || errorReporter.WasParseErrorOccured)
             return (int)ProgramExitCode.InvalidInput;
+
+        if (errorReporter.WasRuntimeErrorOccured)
+            return (int)ProgramExitCode.SoftwareError;
 
         return (int)ProgramExitCode.Success;
     }

@@ -3,5 +3,6 @@
 public enum ErrorType
 {
     LexicalError,
-    ParseError
+    ParseError,
+    RuntimeError
 }

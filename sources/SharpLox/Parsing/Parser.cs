@@ -25,6 +25,7 @@ public sealed class Parser(IErrorReporter errorReporter, IReadOnlyList<Token> to
         }
     }
 
+    #region Parsing methods
     private IExpr ParseCommaExpression() =>
         ParseLeftAssociateBinaryOperatorSeries(ParseExpression, TokenType.Comma);
 
@@ -36,11 +37,13 @@ public sealed class Parser(IErrorReporter errorReporter, IReadOnlyList<Token> to
 
         if (!MatchAndAdvance(TokenType.Question))
             return expr;
+
+        var questionOperator = Previous;
         
         var then = ParseEquality();
         Consume(TokenType.Colon, $"expected \"{AsciiChars.Colon}\" in conditional expression");
         var @else = ParseEquality();
-        return new ConditionalExpr(expr, then, @else);
+        return new ConditionalExpr(questionOperator, expr, then, @else);
     }
 
     private IExpr ParseEquality() =>
@@ -90,12 +93,44 @@ public sealed class Parser(IErrorReporter errorReporter, IReadOnlyList<Token> to
         throw new ParseException();
     }
 
+    private IExpr ParseLeftAssociateBinaryOperatorSeries(Func<IExpr> operandExprGetter, params TokenType[] tokenTypes)
+    {
+        var expr = operandExprGetter();
+
+        while (MatchAnyAndAdvance(tokenTypes))
+        {
+            var @operator = Previous;
+            var right = operandExprGetter();
+            expr = new BinaryExpr(expr, @operator, right);
+        }
+
+        return expr;
+    }
+    #endregion
+
+    #region Utility methods
     private void Consume(TokenType tokenType, string errorMessage)
     {
         if (MatchAndAdvance(tokenType))
             return;
 
         ReportErrorAndThrow(errorMessage);
+    }
+
+    [DoesNotReturn]
+    private void ReportErrorAndThrow(string errorMessage)
+    {
+        ReportError(CreateError(Current, errorMessage));
+        throw new ParseException();
+    }
+
+    private static Error CreateError(Token token, string errorMessage)
+    {
+        errorMessage = token.Type is TokenType.Terminator
+            ? $"{errorMessage} at end."
+            : $"{errorMessage} at \"{token.Lexeme}\".";
+            
+        return new Error(ErrorType.ParseError, token.LineNumber, token.ColumnNumber, errorMessage);
     }
 
     private void Synchronize()
@@ -125,37 +160,8 @@ public sealed class Parser(IErrorReporter errorReporter, IReadOnlyList<Token> to
             Advance();
         }
     }
+    #endregion
 
-    [DoesNotReturn]
-    private void ReportErrorAndThrow(string errorMessage)
-    {
-        ReportError(CreateError(Current, errorMessage));
-        throw new ParseException();
-    }
-
-    private static Error CreateError(Token token, string errorMessage)
-    {
-        errorMessage = token.Type is TokenType.Terminator
-            ? $"{errorMessage} at end."
-            : $"{errorMessage} at \"{token.Lexeme}\".";
-            
-        return new Error(ErrorType.ParseError, token.LineNumber, token.ColumnNumber, errorMessage);
-    }
-
-    private IExpr ParseLeftAssociateBinaryOperatorSeries(Func<IExpr> operandExprGetter, params TokenType[] tokenTypes)
-    {
-        var expr = operandExprGetter();
-
-        while (MatchAnyAndAdvance(tokenTypes))
-        {
-            var @operator = Previous;
-            var right = operandExprGetter();
-            expr = new BinaryExpr(expr, @operator, right);
-        }
-
-        return expr;
-    }
-    
     #region Match any TokenType
     private bool MatchAnyAndAdvance(params TokenType[] expectedTokenTypes)
     {

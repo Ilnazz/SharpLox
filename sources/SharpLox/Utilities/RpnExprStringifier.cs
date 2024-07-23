@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using SharpLox.Expressions;
 using SharpLox.Scanning;
-using SharpLox.Tokens;
 
 namespace SharpLox.Utilities;
 
@@ -13,10 +12,11 @@ public class RpnExprStringifier : IExprStringifier, IExprVisitor<string>
     public string Stringify(IExpr expr) =>
         expr.Accept(this);
 
+    #region Visit methods
     string IExprVisitor<string>.Visit(LiteralExpr literal) =>
         literal.Value is not null
             ? literal.Value.ToString() ?? string.Empty
-            : "nil";
+            : Keywords.Nil;
 
     string IExprVisitor<string>.Visit(GroupingExpr grouping) =>
         grouping.Expr.Accept(this);
@@ -30,7 +30,8 @@ public class RpnExprStringifier : IExprStringifier, IExprVisitor<string>
     string IExprVisitor<string>.Visit(ConditionalExpr conditional) =>
         StringifyExpressions($"{AsciiChars.Question}{AsciiChars.Colon}",
             conditional.Condition, conditional.Then, conditional.Else);
-
+    #endregion
+    
     private string StringifyExpressions(string operatorName, params IExpr[] exprs)
     {
         var stringBuilder = new StringBuilder();

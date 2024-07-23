@@ -11,9 +11,10 @@ namespace SharpLox.Scanning;
 public sealed class Scanner(IErrorReporter errorReporter, string sourceCode) :
     ScannerParserBase<char>(errorReporter, sourceCode.ToCharArray()), IScanner
 {
-    private string CurrentLexeme => sourceCode[_lexemeStartIndex..CurrentIndex];
+    private string CurrentLexeme => sourceCode[_lexemeStartIndex .. CurrentIndex];
     
     #region Fields
+    // Needed to parse double with '.' char
     private static readonly CultureInfo EnglishCulture = new("en-US");
     
     private static readonly FrozenDictionary<string, TokenType> TokenTypeByKeywords = new Dictionary<string, TokenType>
@@ -218,8 +219,7 @@ public sealed class Scanner(IErrorReporter errorReporter, string sourceCode) :
         return error is null;
     }
 
-    private void HandleWhiteSpace() =>
-        IncrementLineAndResetColumn();
+    private void HandleWhiteSpace() => _currentColumn++;
 
     private void HandleSlash(out Token? token, out Error? error)
     {
@@ -280,7 +280,7 @@ public sealed class Scanner(IErrorReporter errorReporter, string sourceCode) :
         // The closing quote.
         Advance();
 
-        var literal = CurrentLexeme[1..^2];
+        var literal = CurrentLexeme[1..^1];
         token = CreateToken(TokenType.String, literal);
     }
 
@@ -300,7 +300,7 @@ public sealed class Scanner(IErrorReporter errorReporter, string sourceCode) :
         }
 
         var englishCultureNumberFormat = EnglishCulture.NumberFormat;
-        var literal = decimal.Parse(CurrentLexeme, englishCultureNumberFormat);
+        var literal = double.Parse(CurrentLexeme, englishCultureNumberFormat);
         token = CreateToken(TokenType.Number, literal);
     }
 

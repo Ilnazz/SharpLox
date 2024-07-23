@@ -1,7 +1,19 @@
-﻿namespace SharpLox.Expressions;
+﻿using SharpLox.Tokens;
 
-public sealed class ConditionalExpr(IExpr condition, IExpr then, IExpr @else) : IExpr
+namespace SharpLox.Expressions;
+
+// Todo: store '?' or ':' or both as operators?
+public sealed class ConditionalExpr
+(
+    Token @operator,
+    IExpr condition,
+    IExpr then,
+    IExpr @else
+)
+    : IExpr
 {
+    public Token Operator { get; } = @operator;
+
     public IExpr Condition { get; } = condition;
 
     public IExpr Then { get; } = then;

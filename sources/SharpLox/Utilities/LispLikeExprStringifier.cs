@@ -12,6 +12,7 @@ public class LispLikeExprStringifier : IExprStringifier, IExprVisitor<string>
     public string Stringify(IExpr expr) =>
         expr.Accept(this);
 
+    #region Visit methods
     string IExprVisitor<string>.Visit(LiteralExpr literal) =>
         literal.Value is not null
             ? literal.Value.ToString() ?? string.Empty
@@ -29,6 +30,7 @@ public class LispLikeExprStringifier : IExprStringifier, IExprVisitor<string>
     string IExprVisitor<string>.Visit(ConditionalExpr conditional) =>
         Parenthesize($"{AsciiChars.Question}{AsciiChars.Colon}",
             conditional.Condition, conditional.Then, conditional.Else);
+    #endregion
 
     private string Parenthesize(string operatorName, params IExpr[] exprs)
     {
