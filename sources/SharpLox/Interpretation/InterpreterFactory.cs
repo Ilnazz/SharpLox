@@ -2,7 +2,8 @@
 
 namespace SharpLox.Interpretation;
 
-public class InterpreterFactory(IErrorReporter errorReporter) : IInterpreterFactory
+public class InterpreterFactory(IEnvironmentFactory environmentFactory, IErrorReporter errorReporter) :
+    IInterpreterFactory
 {
-    public IInterpreter CreateInterpreter() => new Interpreter(errorReporter);
+    public IInterpreter CreateInterpreter() => new Interpreter(environmentFactory, errorReporter);
 }

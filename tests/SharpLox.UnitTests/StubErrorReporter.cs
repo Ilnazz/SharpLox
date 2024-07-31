@@ -31,4 +31,9 @@ public class StubErrorReporter : IErrorReporter
             }
         }
     }
+
+    public void Reset()
+    {
+        // Todo: delete UnitTests and Sandbox projects...
+    }
 }

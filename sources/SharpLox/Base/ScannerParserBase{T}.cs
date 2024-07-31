@@ -6,10 +6,7 @@ namespace SharpLox.Base;
 
 public abstract class ScannerParserBase<T>(IErrorReporter errorReporter, IReadOnlyList<T> collection)
 {
-    #region Properties
-    // It is important to use '>' instead of '>=', otherwise the last item will not be handled...
-    protected bool IsAtEnd => CurrentIndex > collection.Count - 1;
-
+    #region Protected properties
     protected int CurrentIndex { get; set; }
 
     protected T Previous => Peek(amount: -1);

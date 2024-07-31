@@ -1,8 +1,6 @@
-﻿using SharpLox.Expressions;
-
-namespace SharpLox.Parsing;
+﻿namespace SharpLox.Parsing;
 
 public interface IParser
 {
-    IExpr? Parse();
+    ParseResult Parse(bool allowSingleUnterminatedExprStmt);
 }

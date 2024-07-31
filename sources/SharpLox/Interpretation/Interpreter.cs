@@ -1,36 +1,97 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reactive;
 using SharpLox.Errors;
 using SharpLox.Expressions;
 using SharpLox.Scanning;
+using SharpLox.Statements;
 using SharpLox.Tokens;
 
 namespace SharpLox.Interpretation;
 
-public sealed class Interpreter(IErrorReporter errorReporter) : IInterpreter, IExprVisitor<object?>
+public sealed class Interpreter
+(
+    IEnvironmentFactory environmentFactory,
+    IErrorReporter errorReporter
+)
+    : IInterpreter, IExprVisitor<object?>, IStmtVisitor<Unit>
 {
-    public void Interpret(IExpr expr)
+    private IEnvironment _environment = environmentFactory.CreateEnvironment(null);
+
+    #region Public methods
+    public void Interpret(IEnumerable<IStmt> stmts) => WithTryCatch(() =>
     {
-        try
+        foreach (var stmt in stmts)
+            ExecuteStmt(stmt);
+    });
+
+    public void Interpret(IExpr expr) => WithTryCatch(() =>
+        EvaluateExprAndPrintResult(expr));
+    #endregion
+
+    #region Statement visiting methods
+    Unit IStmtVisitor<Unit>.Visit(ExprStmt exprStmt)
+    {
+        EvaluateExpr(exprStmt.Expr);
+        return Unit.Default;
+    }
+
+    Unit IStmtVisitor<Unit>.Visit(PrintStmt print)
+    {
+        EvaluateExprAndPrintResult(print.Expr);
+        return Unit.Default;
+    }
+
+    Unit IStmtVisitor<Unit>.Visit(VarStmt var)
+    {
+        var varName = var.Name.Lexeme!;
+        _environment.Define(varName);
+        
+        if (var.Initializer is not null)
         {
-            var value = Evaluate(expr);
-            var stringifiedValue = StringifyObject(value);
-            Console.WriteLine(stringifiedValue); // Todo: make something like IInterpreterOutput
+            var value = EvaluateExpr(var.Initializer);
+            _environment.Assign(var.Name, value);
         }
-        catch (RuntimeException e)
-        {
-            errorReporter.ReportError(CreateError(e.Token, e.Message));
-        }
+        
+        return Unit.Default;
+    }
+
+    Unit IStmtVisitor<Unit>.Visit(BlockStmt block)
+    {
+        var environment = environmentFactory.CreateEnvironment(_environment);
+        ExecuteBlock(block.Stmts, environment);
+        return Unit.Default;
     }
     
-    #region Visit methods
+    private void ExecuteStmt(IStmt stmt) => stmt.Accept(this);
+
+    private void ExecuteBlock(IEnumerable<IStmt> stmts, IEnvironment environment)
+    {
+        var previousEnvironment = _environment;
+        
+        try
+        {
+            _environment = environment;
+            
+            foreach (var stmt in stmts)
+                ExecuteStmt(stmt);
+        }
+        finally
+        {
+            _environment = previousEnvironment;
+        }
+    }
+    #endregion
+    
+    #region Expression visiting methods
     object? IExprVisitor<object?>.Visit(LiteralExpr literal) => literal.Value;
 
-    object? IExprVisitor<object?>.Visit(GroupingExpr grouping) => Evaluate(grouping.Expr);
+    object? IExprVisitor<object?>.Visit(GroupingExpr grouping) => EvaluateExpr(grouping.Expr);
 
     object? IExprVisitor<object?>.Visit(UnaryExpr unary)
     {
-        var right = Evaluate(unary.Right);
+        var right = EvaluateExpr(unary.Right);
 
         switch (unary.Operator.Type)
         {
@@ -52,8 +113,8 @@ public sealed class Interpreter(IErrorReporter errorReporter) : IInterpreter, IE
 
     object? IExprVisitor<object?>.Visit(BinaryExpr binary)
     {
-        var left = Evaluate(binary.Left);
-        var right = Evaluate(binary.Right);
+        var left = EvaluateExpr(binary.Left);
+        var right = EvaluateExpr(binary.Right);
 
         switch (binary.Operator.Type)
         {
@@ -101,7 +162,7 @@ public sealed class Interpreter(IErrorReporter errorReporter) : IInterpreter, IE
                     rightNumber = (double)right!;
 
                 if (rightNumber is 0)
-                    throw new ZeroDivisionException(binary.Operator, "It is not possible to divide a number by zero.");
+                    throw new RuntimeException(binary.Operator, "It is not possible to divide a number by zero.");
                 
                 return leftNumber / rightNumber;
             }
@@ -136,20 +197,37 @@ public sealed class Interpreter(IErrorReporter errorReporter) : IInterpreter, IE
 
     object? IExprVisitor<object?>.Visit(ConditionalExpr conditional)
     {
-        var conditionResult = Evaluate(conditional.Condition);
+        var conditionResult = EvaluateExpr(conditional.Condition);
         if (conditionResult is not bool conditionResultBool)
             throw new RuntimeException(conditional.Operator,
                 "Condition expression must be evaluated to a boolean.");
 
         return conditionResultBool
-            ? Evaluate(conditional.Then)
-            : Evaluate(conditional.Else);
+            ? EvaluateExpr(conditional.Then)
+            : EvaluateExpr(conditional.Else);
     }
-    #endregion
+
+    object? IExprVisitor<object?>.Visit(VarExpr var) =>
+        _environment.Get(var.Name);
+
+    object? IExprVisitor<object?>.Visit(AssignExpr assign)
+    {
+        var value = EvaluateExpr(assign.Value);
+        _environment.Assign(assign.Name, value);
+        return value;
+    }
     
-    private object? Evaluate(IExpr expr) => expr.Accept(this);
+    private object? EvaluateExpr(IExpr expr) => expr.Accept(this);
+    #endregion
 
     #region Utility methods
+    private void EvaluateExprAndPrintResult(IExpr expr)
+    {
+        var value = EvaluateExpr(expr);
+        var stringifiedValue = StringifyObject(value);
+        Console.WriteLine(stringifiedValue); // Todo: make something like IInterpreterOutputWriter
+    }
+    
     private static string StringifyObject(object? obj) => obj switch
     {
         null => Keywords.Nil,
@@ -186,6 +264,18 @@ public sealed class Interpreter(IErrorReporter errorReporter) : IInterpreter, IE
     {
         if (operand is not double)
             throw new RuntimeException(@operator, "Operand must be a number.");
+    }
+    
+    private void WithTryCatch(Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (RuntimeException e)
+        {
+            errorReporter.ReportError(CreateError(e.Token, e.Message));
+        }
     }
     #endregion
 }

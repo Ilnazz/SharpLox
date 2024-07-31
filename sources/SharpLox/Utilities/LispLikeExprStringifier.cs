@@ -12,11 +12,11 @@ public class LispLikeExprStringifier : IExprStringifier, IExprVisitor<string>
     public string Stringify(IExpr expr) =>
         expr.Accept(this);
 
-    #region Visit methods
+    #region Visiting methods
     string IExprVisitor<string>.Visit(LiteralExpr literal) =>
         literal.Value is not null
             ? literal.Value.ToString() ?? string.Empty
-            : "nil";
+            : Keywords.Nil;
 
     string IExprVisitor<string>.Visit(GroupingExpr grouping) =>
         Parenthesize("group", grouping.Expr);
@@ -30,6 +30,12 @@ public class LispLikeExprStringifier : IExprStringifier, IExprVisitor<string>
     string IExprVisitor<string>.Visit(ConditionalExpr conditional) =>
         Parenthesize($"{AsciiChars.Question}{AsciiChars.Colon}",
             conditional.Condition, conditional.Then, conditional.Else);
+
+    string IExprVisitor<string>.Visit(VarExpr var) =>
+        var.Name.Lexeme!;
+
+    string IExprVisitor<string>.Visit(AssignExpr assign) =>
+        $"{AsciiChars.LeftParen}{AsciiChars.Equal} {assign.Name} {assign.Value}{AsciiChars.RightParen}";
     #endregion
 
     private string Parenthesize(string operatorName, params IExpr[] exprs)

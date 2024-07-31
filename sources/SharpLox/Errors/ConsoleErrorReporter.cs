@@ -12,6 +12,7 @@ public class ConsoleErrorReporter : IErrorReporter
     public bool WasRuntimeErrorOccured { get; private set; }
     #endregion
 
+    #region Methods
     public void ReportError(Error error)
     {
         switch (error.Type)
@@ -35,4 +36,12 @@ public class ConsoleErrorReporter : IErrorReporter
 
         Console.Error.WriteLine(error);
     }
+
+    public void Reset()
+    {
+        WasLexicalErrorOccured = false;
+        WasParseErrorOccured = false;
+        WasRuntimeErrorOccured = false;
+    }
+    #endregion
 }

@@ -16,6 +16,7 @@ public static class Program
             .AddSingleton<IErrorReporter, ConsoleErrorReporter>()
             .AddSingleton<IScannerFactory, ScannerFactory>()
             .AddSingleton<IParserFactory, ParserFactory>()
+            .AddSingleton<IEnvironmentFactory, EnvironmentFactory>()
             .AddSingleton<IInterpreterFactory, InterpreterFactory>()
             .AddSingleton<IInterpreterProgram, InterpreterProgram>();
 

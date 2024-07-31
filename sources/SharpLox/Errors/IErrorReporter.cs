@@ -10,5 +10,9 @@ public interface IErrorReporter
     bool WasRuntimeErrorOccured { get; }
     #endregion
 
+    #region Methods
     void ReportError(Error error);
+
+    void Reset();
+    #endregion
 }

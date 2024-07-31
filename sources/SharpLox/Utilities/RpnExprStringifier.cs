@@ -12,7 +12,7 @@ public class RpnExprStringifier : IExprStringifier, IExprVisitor<string>
     public string Stringify(IExpr expr) =>
         expr.Accept(this);
 
-    #region Visit methods
+    #region Visiting methods
     string IExprVisitor<string>.Visit(LiteralExpr literal) =>
         literal.Value is not null
             ? literal.Value.ToString() ?? string.Empty
@@ -30,6 +30,12 @@ public class RpnExprStringifier : IExprStringifier, IExprVisitor<string>
     string IExprVisitor<string>.Visit(ConditionalExpr conditional) =>
         StringifyExpressions($"{AsciiChars.Question}{AsciiChars.Colon}",
             conditional.Condition, conditional.Then, conditional.Else);
+    
+    string IExprVisitor<string>.Visit(VarExpr var) =>
+        var.Name.Lexeme!;
+    
+    string IExprVisitor<string>.Visit(AssignExpr assign) =>
+        $"{AsciiChars.LeftParen}{AsciiChars.Equal} {assign.Name} {assign.Value}{AsciiChars.RightParen}";
     #endregion
     
     private string StringifyExpressions(string operatorName, params IExpr[] exprs)

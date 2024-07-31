@@ -11,7 +11,12 @@ namespace SharpLox.Scanning;
 public sealed class Scanner(IErrorReporter errorReporter, string sourceCode) :
     ScannerParserBase<char>(errorReporter, sourceCode.ToCharArray()), IScanner
 {
+    #region Private properties
+    // It is important to use '>' instead of '>=', otherwise the last item will not be handled...
+    private bool IsAtEnd => CurrentIndex > sourceCode.Length - 1;
+    
     private string CurrentLexeme => sourceCode[_lexemeStartIndex .. CurrentIndex];
+    #endregion
     
     #region Fields
     // Needed to parse double with '.' char
@@ -47,13 +52,16 @@ public sealed class Scanner(IErrorReporter errorReporter, string sourceCode) :
         .ToFrozenDictionary();
     
     private int
-        _currentLine = 1,
+        _currentLine,
         _currentColumn,
         _lexemeStartIndex;
     #endregion
     
     public IEnumerable<Token> ScanTokens()
     {
+        if (!IsAtEnd)
+            _currentLine = 1;
+        
         while (!IsAtEnd)
         {
             _lexemeStartIndex = CurrentIndex;

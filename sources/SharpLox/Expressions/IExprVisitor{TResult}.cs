@@ -11,4 +11,8 @@ public interface IExprVisitor<out TResult>
     TResult Visit(BinaryExpr binary);
 
     TResult Visit(ConditionalExpr conditional);
+
+    TResult Visit(VarExpr var);
+
+    TResult Visit(AssignExpr assign);
 }

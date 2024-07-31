@@ -6,6 +6,7 @@ using SharpLox.Base;
 using SharpLox.Errors;
 using SharpLox.Expressions;
 using SharpLox.Scanning;
+using SharpLox.Statements;
 using SharpLox.Tokens;
 
 namespace SharpLox.Parsing;
@@ -13,24 +14,166 @@ namespace SharpLox.Parsing;
 public sealed class Parser(IErrorReporter errorReporter, IReadOnlyList<Token> tokens) :
     ScannerParserBase<Token>(errorReporter, tokens), IParser
 {
-    public IExpr? Parse()
+    private bool IsAtEnd => Current.Type is TokenType.Terminator;
+
+    private bool _isSingleUnterminatedExprStmtAllowed;
+
+    #region Public methods
+    public ParseResult Parse(bool allowSingleUnterminatedExprStmt)
     {
+        var stmts = new List<IStmt>();
+
+        if (allowSingleUnterminatedExprStmt)
+        {
+            _isSingleUnterminatedExprStmtAllowed = true;
+
+            IExpr? expr = null;
+        
+            while (!IsAtEnd)
+            {
+                if (!TryParseDeclStmt(out var stmt))
+                    continue;
+
+                if (stmt is ExprStmt exprStmt)
+                {
+                    expr = exprStmt.Expr;
+                    break;
+                }
+                
+                stmts.Add(stmt);
+            }
+
+            _isSingleUnterminatedExprStmtAllowed = false;
+
+            if (expr is not null)
+                return new ParseResult(ParseResultType.Expression, expr: expr);
+            
+            return stmts.Count is 0
+                ? new ParseResult(ParseResultType.None)
+                : new ParseResult(ParseResultType.Statements, stmts: stmts);
+        }
+        
+        while (!IsAtEnd)
+        {
+            if (TryParseDeclStmt(out var stmt))
+                stmts.Add(stmt);
+        }
+
+        return stmts.Count is 0
+            ? new ParseResult(ParseResultType.None)
+            : new ParseResult(ParseResultType.Statements, stmts: stmts);
+    }
+    #endregion
+
+    #region Statement parsing methods
+    private bool TryParseDeclStmt([NotNullWhen(true)] out IStmt? stmt)
+    {
+        stmt = null;
+        
         try
         {
-            return ParseCommaExpression();
+            stmt = MatchAndAdvance(TokenType.Var)
+                ? ParseVarDeclStmt()
+                : ParseStmt();
         }
         catch (ParseException)
         {
-            return null;
+            Synchronize();
         }
+
+        return stmt is not null;
     }
 
-    #region Parsing methods
-    private IExpr ParseCommaExpression() =>
-        ParseLeftAssociateBinaryOperatorSeries(ParseExpression, TokenType.Comma);
+    private IStmt ParseVarDeclStmt()
+    {
+        var name = Consume(TokenType.Identifier, "expected variable name");
 
-    private IExpr ParseExpression() => ParseConditional();
+        IExpr? initializer = null;
+        if (MatchAndAdvance(TokenType.Equal))
+            initializer = ParseExpr();
 
+        ConsumeSemicolonIfNeeded("after variable declaration");
+        return new VarStmt(name, initializer);
+    }
+    
+    private IStmt ParseStmt()
+    {
+        if (MatchAndAdvance(TokenType.Print))
+            return ParsePrintStmt();
+
+        if (MatchAndAdvance(TokenType.LeftBrace))
+            return new BlockStmt(ParseBlockStmt());
+
+        return ParseExprStmt();
+    }
+
+    private IEnumerable<IStmt> ParseBlockStmt()
+    {
+        var stmts = new List<IStmt>();
+        
+        while (!IsAtEnd && !Match(TokenType.RightBrace))
+        {
+            if (TryParseDeclStmt(out var stmt))
+                stmts.Add(stmt);
+        }
+
+        Consume(TokenType.RightBrace, $"expected \"{AsciiChars.RightBrace}\" after block.");
+
+        return stmts;
+    }
+
+    private IStmt ParsePrintStmt()
+    {
+        var expr = ParseExpr();
+        ConsumeSemicolonIfNeeded();
+        return new PrintStmt(expr);
+    }
+
+    private IStmt ParseExprStmt()
+    {
+        var expr = ParseExpr();
+        ConsumeSemicolonIfNeeded();
+        return new ExprStmt(expr);
+    }
+
+    private void ConsumeSemicolonIfNeeded(string? place = null)
+    {
+        if (_isSingleUnterminatedExprStmtAllowed && IsAtEnd)
+            return;
+        
+        var errorMessage = $"expected \"{AsciiChars.Semicolon}\"";
+        if (place is not null)
+            errorMessage = $"{errorMessage} {place}";
+            
+        Consume(TokenType.Semicolon, errorMessage);
+    }
+    #endregion
+
+    #region Expression parsing methods
+    private IExpr ParseExpr() =>
+        ParseLeftAssociateBinaryOperatorSeries(ParseAssignment, TokenType.Comma);
+
+    private IExpr ParseAssignment()
+    {
+        var expr = ParseConditional();
+
+        if (MatchAndAdvance(TokenType.Equal))
+        {
+            var equals = Previous;
+            var value = ParseAssignment();
+
+            if (expr is VarExpr varExpr)
+            {
+                var name = varExpr.Name;
+                return new AssignExpr(name, value);
+            }
+            
+            ReportError(CreateError(equals, "Invalid assignment target."));
+        }
+
+        return expr;
+    }
+    
     private IExpr ParseConditional()
     {
         var expr = ParseEquality();
@@ -73,22 +216,26 @@ public sealed class Parser(IErrorReporter errorReporter, IReadOnlyList<Token> to
     {
         if (MatchAndAdvance(TokenType.False))
             return new LiteralExpr(false);
-        if (MatchAnyAndAdvance(TokenType.True))
+        
+        if (MatchAndAdvance(TokenType.True))
             return new LiteralExpr(true);
-        if (MatchAnyAndAdvance(TokenType.Nil))
+        
+        if (MatchAndAdvance(TokenType.Nil))
             return new LiteralExpr(null);
+        
+        if (MatchAndAdvance(TokenType.Identifier))
+            return new VarExpr(Previous);
 
         if (MatchAnyAndAdvance(TokenType.Number, TokenType.String))
             return new LiteralExpr(Previous.Literal);
 
-        if (MatchAnyAndAdvance(TokenType.LeftParen))
+        if (MatchAndAdvance(TokenType.LeftParen))
         {
-            var expr = ParseExpression();
+            var expr = ParseExpr();
             Consume(TokenType.RightParen, $"expected \"{AsciiChars.RightParen}\" after expression");
             return new GroupingExpr(expr);
         }
         
-        // ReportErrorAndThrow("expression expected.");
         ReportError(CreateError(Current, "expression expected"));
         throw new ParseException();
     }
@@ -109,17 +256,15 @@ public sealed class Parser(IErrorReporter errorReporter, IReadOnlyList<Token> to
     #endregion
 
     #region Utility methods
-    private void Consume(TokenType tokenType, string errorMessage)
+    private Token Consume(TokenType tokenType, string errorMessage)
     {
-        if (MatchAndAdvance(tokenType))
-            return;
+        if (Match(tokenType))
+        {
+            var token = Current;
+            Advance();
+            return token;
+        }
 
-        ReportErrorAndThrow(errorMessage);
-    }
-
-    [DoesNotReturn]
-    private void ReportErrorAndThrow(string errorMessage)
-    {
         ReportError(CreateError(Current, errorMessage));
         throw new ParseException();
     }
